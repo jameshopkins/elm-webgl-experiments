@@ -1,7 +1,8 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Attributes exposing (width, height, style)
+import Html.Events exposing (onInput)
+import Html.Attributes exposing (width, height, min, max, style, type_, value)
 import WebGL exposing (Mesh, Shader, Entity)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (vec3, Vec3)
@@ -11,11 +12,12 @@ import WebGL.Texture as Texture exposing (clampToEdge, Error, Texture)
 
 
 type alias Model =
-    { texture : Maybe Texture }
+    { texture : Maybe Texture, rotation : Float }
 
 
 type Msg
     = TextureLoaded (Result Error Texture)
+    | RotateFloor String
 
 
 main : Program Never Model Msg
@@ -34,27 +36,40 @@ init =
         loadTexture =
             Texture.load "crate.jpg"
     in
-        ( Model Nothing, Task.attempt TextureLoaded loadTexture )
+        ( Model Nothing 0, Task.attempt TextureLoaded loadTexture )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        RotateFloor deg ->
+            ( { model | rotation = Result.withDefault 0 (String.toFloat deg) }, Cmd.none )
+
         TextureLoaded texture ->
             ( { model | texture = Result.toMaybe texture }, Cmd.none )
 
 
 view : Model -> Html Msg
-view { texture } =
-    WebGL.toHtml
-        [ width 400
-        , height 400
-        , style [ ( "display", "block" ) ]
+view { rotation, texture } =
+    div []
+        [ WebGL.toHtml
+            [ width 800
+            , height 800
+            , style [ ( "display", "block" ) ]
+            ]
+            (texture
+                |> Maybe.map (scene (perspective rotation))
+                |> Maybe.withDefault []
+            )
+        , input
+            [ Html.Attributes.min "0"
+            , Html.Attributes.max "360"
+            , onInput RotateFloor
+            , type_ "range"
+            , value <| toString <| rotation
+            ]
+            []
         ]
-        (texture
-            |> Maybe.map (scene perspective)
-            |> Maybe.withDefault []
-        )
 
 
 scene : Mat4 -> Texture -> List Entity
@@ -79,11 +94,14 @@ type alias Vertex =
     }
 
 
-perspective : Mat4
-perspective =
-    Mat4.mul
-        (Mat4.makePerspective 45 1 0.01 100)
-        (Mat4.makeLookAt (vec3 0 0 4) (vec3 0 0 0) (vec3 0 1 0))
+perspective : Float -> Mat4
+perspective angle =
+    List.foldr Mat4.mul
+        Mat4.identity
+        [ Mat4.makePerspective 45 1 0.01 100
+        , Mat4.makeLookAt (vec3 0 0 4) (vec3 0 0 0) (vec3 0 1 0)
+        , Mat4.makeRotate (angle / 230) (vec3 0 1 0)
+        ]
 
 
 pitch : Mesh Vertex
