@@ -12,32 +12,40 @@ import Court
 
 
 type alias Model =
-    { texture : Maybe Texture, rotation : Float }
+    { texture : Maybe Texture
+    , rotation : Float
+    , zoom : Float
+    }
 
 
 type Msg
     = TextureLoaded (Result Error Texture)
     | RotateFloor String
+    | Zoom String
 
 
 scene : Mat4 -> Texture -> List Entity
-scene camera texture =
+scene perspective texture =
     [ WebGL.entity
         Court.vertexShader
         Court.fragmentShader
         Court.court
-        { texture = texture, perspective = camera }
+        { texture = texture, perspective = perspective }
     ]
 
 
-perspective : Float -> Mat4
-perspective angle =
-    List.foldr Mat4.mul
-        Mat4.identity
-        [ Mat4.makePerspective 45 1 0.01 100
-        , Mat4.makeLookAt (vec3 0 0 4) (vec3 0 0 0) (vec3 0 1 0)
-        , Mat4.makeRotate (angle / 230) (vec3 0 1 0)
-        ]
+perspective : Float -> Float -> Mat4
+perspective angle zoom =
+    let
+        foo =
+            zoom
+    in
+        List.foldr Mat4.mul
+            Mat4.identity
+            [ Mat4.makePerspective 45 1 0.01 100
+            , Mat4.makeLookAt (vec3 0 foo foo) (vec3 0 0 0) (vec3 0 1 0)
+            , Mat4.makeRotate (angle / 230) (vec3 0 1 0)
+            ]
 
 
 main : Program Never Model Msg
@@ -55,9 +63,9 @@ init =
     let
         loadTexture =
             -- This is pants. The image size is incorrect - yielding a SizeError
-            Texture.loadWith Texture.nonPowerOfTwoOptions "court.png"
+            Texture.loadWith Texture.nonPowerOfTwoOptions "court.jpg"
     in
-        ( Model Nothing 0, Task.attempt TextureLoaded loadTexture )
+        ( Model Nothing 0 2, Task.attempt TextureLoaded loadTexture )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -66,12 +74,15 @@ update msg model =
         RotateFloor deg ->
             ( { model | rotation = Result.withDefault 0 (String.toFloat deg) }, Cmd.none )
 
+        Zoom l ->
+            ( { model | zoom = Result.withDefault 0 (String.toFloat l) }, Cmd.none )
+
         TextureLoaded texture ->
             ( { model | texture = Result.toMaybe texture }, Cmd.none )
 
 
 view : Model -> Html Msg
-view { rotation, texture } =
+view { rotation, texture, zoom } =
     div []
         [ WebGL.toHtml
             [ width 800
@@ -79,7 +90,7 @@ view { rotation, texture } =
             , style [ ( "display", "block" ) ]
             ]
             (texture
-                |> Maybe.map (scene (perspective rotation))
+                |> Maybe.map (scene (perspective rotation zoom))
                 |> Maybe.withDefault []
             )
         , input
@@ -88,6 +99,15 @@ view { rotation, texture } =
             , onInput RotateFloor
             , type_ "range"
             , value <| toString <| rotation
+            ]
+            []
+        , input
+            [ Html.Attributes.min "0.5"
+            , Html.Attributes.max "4"
+            , Html.Attributes.step "0.01"
+            , onInput Zoom
+            , type_ "range"
+            , value <| toString <| zoom
             ]
             []
         ]
