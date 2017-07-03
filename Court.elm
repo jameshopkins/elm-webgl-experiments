@@ -22,17 +22,22 @@ type alias Vertex =
 court : Mesh Vertex
 court =
     let
+        -- This is crudely calculated based on the computed dimensions of the texture we load.
+        -- This will ultimately be a fixed ratio based on the NBA court size.
+        courtRatio =
+            716 / 1261
+
         nearLeft =
-            Vertex (vec3 -1 -1 -1) (vec2 0 1)
+            Vertex (vec3 -1 -1 (negate courtRatio)) (vec2 0 1)
 
         nearRight =
-            Vertex (vec3 1 -1 -1) (vec2 1 1)
+            Vertex (vec3 1 -1 (negate courtRatio)) (vec2 1 1)
 
         farLeft =
-            Vertex (vec3 -1 -1 1) (vec2 0 0)
+            Vertex (vec3 -1 -1 courtRatio) (vec2 0 0)
 
         farRight =
-            Vertex (vec3 1 -1 1) (vec2 1 0)
+            Vertex (vec3 1 -1 courtRatio) (vec2 1 0)
     in
         [ ( nearLeft, nearRight, farLeft ), ( farLeft, farRight, nearRight ) ]
             |> WebGL.triangles

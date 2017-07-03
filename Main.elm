@@ -54,7 +54,8 @@ init : ( Model, Cmd Msg )
 init =
     let
         loadTexture =
-            Texture.load "crate.jpg"
+            -- This is pants. The image size is incorrect - yielding a SizeError
+            Texture.loadWith Texture.nonPowerOfTwoOptions "court.png"
     in
         ( Model Nothing 0, Task.attempt TextureLoaded loadTexture )
 
