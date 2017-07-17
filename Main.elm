@@ -1,20 +1,23 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Events exposing (onInput)
+import Html.Events exposing (on, onInput)
 import Html.Attributes exposing (width, height, min, max, style, type_, value)
 import Math.Matrix4 as Mat4 exposing (Mat4)
+import Math.Vector2 as Vec2 exposing (vec2, Vec2)
 import Math.Vector3 as Vec3 exposing (vec3, Vec3)
 import Task
 import WebGL exposing (Mesh, Shader, Entity)
 import WebGL.Texture as Texture exposing (Error, Texture)
 import Court
+import Json.Decode as Json
 
 
 type alias Model =
     { texture : Maybe Texture
     , rotation : Float
     , zoom : Float
+    , screenCoords : Vec2
     }
 
 
@@ -22,6 +25,19 @@ type Msg
     = TextureLoaded (Result Error Texture)
     | RotateFloor String
     | Zoom String
+    | SetScreenCoordinates Vec2
+
+
+screenCoordinateOffsets : Json.Decoder Vec2
+screenCoordinateOffsets =
+    Json.map2 vec2
+        (Json.field "offsetX" Json.float)
+        (Json.field "offsetY" Json.float)
+
+
+onClick : (Vec2 -> msg) -> Attribute msg
+onClick tagger =
+    on "click" (Json.map tagger screenCoordinateOffsets)
 
 
 scene : Mat4 -> Texture -> List Entity
@@ -65,7 +81,7 @@ init =
             -- This is pants. The image size is incorrect - yielding a SizeError
             Texture.loadWith Texture.nonPowerOfTwoOptions "court.jpg"
     in
-        ( Model Nothing 0 2, Task.attempt TextureLoaded loadTexture )
+        ( Model Nothing 0 2 (vec2 0 0), Task.attempt TextureLoaded loadTexture )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -80,6 +96,9 @@ update msg model =
         TextureLoaded texture ->
             ( { model | texture = Result.toMaybe texture }, Cmd.none )
 
+        SetScreenCoordinates coords ->
+            ( { model | screenCoords = coords }, Cmd.none )
+
 
 view : Model -> Html Msg
 view { rotation, texture, zoom } =
@@ -88,6 +107,7 @@ view { rotation, texture, zoom } =
             [ width 800
             , height 800
             , style [ ( "display", "block" ) ]
+            , onClick SetScreenCoordinates
             ]
             (texture
                 |> Maybe.map (scene (perspective rotation zoom))
