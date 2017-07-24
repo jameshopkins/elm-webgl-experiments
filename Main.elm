@@ -4,7 +4,7 @@ import Html exposing (..)
 import Html.Events exposing (on, onInput)
 import Html.Attributes exposing (width, height, min, max, style, type_, value)
 import Math.Matrix4 as Mat4 exposing (Mat4)
-import Math.Vector2 as Vec2 exposing (vec2, Vec2)
+import Math.Vector2 as Vec2 exposing (getX, getY, vec2, Vec2)
 import Math.Vector3 as Vec3 exposing (vec3, Vec3)
 import Task
 import WebGL exposing (Mesh, Shader, Entity)
@@ -52,16 +52,12 @@ scene perspective texture =
 
 perspective : Float -> Float -> Mat4
 perspective angle zoom =
-    let
-        foo =
-            zoom
-    in
-        List.foldr Mat4.mul
-            Mat4.identity
-            [ Mat4.makePerspective 45 1 0.01 100
-            , Mat4.makeLookAt (vec3 0 foo foo) (vec3 0 0 0) (vec3 0 1 0)
-            , Mat4.makeRotate (angle / 230) (vec3 0 1 0)
-            ]
+    List.foldr Mat4.mul
+        Mat4.identity
+        [ Mat4.makePerspective 45 1 0.01 100
+        , Mat4.makeLookAt (vec3 0 zoom zoom) (vec3 0 0 0) (vec3 0 1 0)
+        , Mat4.makeRotate (angle / 230) (vec3 0 1 0)
+        ]
 
 
 main : Program Never Model Msg
@@ -84,6 +80,18 @@ init =
         ( Model Nothing 0 2 (vec2 0 0), Task.attempt TextureLoaded loadTexture )
 
 
+toDeviceCoordinates : Vec2 -> Vec2
+toDeviceCoordinates coords =
+    let
+        x =
+            (2 * (getX coords)) / 800 - 1
+
+        y =
+            1 - (2 * (getY coords)) / 800
+    in
+        vec2 x y
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -97,7 +105,7 @@ update msg model =
             ( { model | texture = Result.toMaybe texture }, Cmd.none )
 
         SetScreenCoordinates coords ->
-            ( { model | screenCoords = coords }, Cmd.none )
+            ( { model | screenCoords = coords |> toDeviceCoordinates }, Cmd.none )
 
 
 view : Model -> Html Msg
